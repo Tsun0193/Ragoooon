@@ -24,8 +24,8 @@ Embark on smarter, funnier, and more unforgettable adventures with **Ragoooon** 
 
 **Connect with Us:**
 
-- **Website:** [www.ragoooon.com](https://www.ragoooon.com)
-- **GitHub:** [github.com/ragoooon](https://github.com/ragoooon)
-- **Support:** [support@ragoooon.com](mailto:support@ragoooon.com)
+- **Website:** 
+- **GitHub:** 
+- **Support:** 
 
 Stay tuned for updates and join our community of adventurous travelers today!
