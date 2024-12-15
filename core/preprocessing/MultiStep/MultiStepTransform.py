@@ -3,7 +3,7 @@ from llama_index.llms.huggingface import HuggingFaceLLM
 from dotenv import load_dotenv
 from typing import Optional, List
 
-load_dotenv()
+load_dotenv('../../.env')
 
 # Load Hugging Face Token
 HF_TOKEN: Optional[str] = os.getenv("HUGGING_FACE_TOKEN")
