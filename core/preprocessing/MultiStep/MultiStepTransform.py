@@ -32,6 +32,7 @@ class MultiStepTransformer:
         decomposition_prompt = f"Please break down the question '{text}' into smaller sub-queries that can be answered one by one."
 
         decomposition = self.llm.complete(decomposition_prompt, temperature=0.2)
+        decomposition = decomposition.text
 
         # Clean the decomposition output to get individual sub-queries
         sub_queries = decomposition.split('\n')
@@ -55,7 +56,7 @@ class MultiStepTransformer:
         results = []
         for query in decomposed_queries:
             if query:  # Avoid empty queries
-                response = self.llm.generate(f"Answer the following query: {query}")
+                response = self.llm.complete(f"Answer the following query: {query}")
                 results.append(f"Sub-query: {query} -> Answer: {response}")
 
         # Combine all sub-query results into one final response
