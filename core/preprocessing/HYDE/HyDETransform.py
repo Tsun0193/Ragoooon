@@ -30,8 +30,13 @@ class HyDETransformer(HyDEQueryTransform):
         :param hyde_prompt: str, default None. The prompt to use for the HyDE model.
         :param include_original: bool, default True. Whether to include the original text in the output.
         """
+        if isinstance(llm, str):
+            self.llm = RagoonBot(model=llm)
+        else:
+            self.llm = llm
+            
         super().__init__(
-            llm=llm,
+            llm=self.llm,
             hyde_prompt=hyde_prompt,
             include_original=include_original
         )

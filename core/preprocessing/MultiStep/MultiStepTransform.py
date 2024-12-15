@@ -1,26 +1,24 @@
 import os
-from llama_index.llms.huggingface import HuggingFaceLLM
+from core.llm.CustomLLM import RagoonBot
+from llama_index.core.llms import LLM
 from dotenv import load_dotenv
-from typing import Optional, List
+from typing import Optional, List, Union
 
 load_dotenv('../../.env')
 
-# Load Hugging Face Token
-HF_TOKEN: Optional[str] = os.getenv("HUGGING_FACE_TOKEN")
-
-# Initialize the Hugging Face LLM with the appropriate model
-llm = HuggingFaceLLM(model_name="meta-llama/Llama-3.2-3B-Instruct",
-                     tokenizer_name="meta-llama/Llama-3.2-3B-Instruct",)
+llm = RagoonBot()
 
 class MultiStepTransformer:
-    def __init__(self, llm: HuggingFaceLLM = None):
+    def __init__(self, llm: Union[LLM, str]):
         """
         Initializes the MultiStepTransformer.
 
-        :param llm: HuggingFaceLLM, default None. The LLM model to use.
+        :param llm: LLM, default None. The LLM model to use.
         """
-        self.llm = llm or HuggingFaceLLM(model_name="meta-llama/Llama-3.2-3B-Instruct",
-                                        tokenizer_name="meta-llama/Llama-3.2-3B-Instruct")
+        if isinstance(llm, str):
+            self.llm = RagoonBot(model=llm)
+        else:
+            self.llm = llm
 
     def decompose_query(self, text: str) -> List[str]:
         """
@@ -34,7 +32,6 @@ class MultiStepTransformer:
         decomposition_prompt = f"Please break down the question '{text}' into smaller sub-queries that can be answered one by one."
 
         decomposition = self.llm.complete(decomposition_prompt, temperature=0.2)
-        decomposition = decomposition.choices[0].text.strip()
 
         # Clean the decomposition output to get individual sub-queries
         sub_queries = decomposition.split('\n')
