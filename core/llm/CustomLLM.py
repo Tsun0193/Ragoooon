@@ -2,14 +2,16 @@ import os
 from llama_index.core.llms import CustomLLM, CompletionResponse, CompletionResponseGen, LLMMetadata, LLM
 from llama_index.core.llms.callbacks import llm_completion_callback
 from huggingface_hub import InferenceClient
-from typing import Any
+from typing import Any, List
 from dotenv import load_dotenv
 
 load_dotenv('../../.env')
 
 client = InferenceClient(api_key=os.environ["HF_TOKEN"])
 
-def complete(user_text, model = "meta-llama/Llama-3.2-3B-Instruct"):
+def complete(user_text,
+             model = "meta-llama/Llama-3.2-3B-Instruct",
+             history: List[dict] = None) -> str:
     # completion = Complete(
     #     model="snowflake-arctic",
     #     prompt=user_text,
@@ -17,12 +19,15 @@ def complete(user_text, model = "meta-llama/Llama-3.2-3B-Instruct"):
     # )
     # return completion
 
-    messages = [
-        {
-            "role": "user",
-            "content": user_text
-        }
-    ]
+    if history:
+        messages = history
+    else:
+        messages = []
+
+    messages.append({
+        "role": "user",
+        "content": user_text
+    })
 
     completion = client.chat.completions.create(
         model=model, 
