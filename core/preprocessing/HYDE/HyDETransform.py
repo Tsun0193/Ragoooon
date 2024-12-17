@@ -57,3 +57,8 @@ class HyDETransformer(HyDEQueryTransform):
         
         response = self.run(text)
         return response.custom_embedding_strs
+    
+if __name__ == "__main__":
+    transformer = HyDETransformer(llm="meta-llama/Llama-3.2-3B-Instruct")
+    response = transformer.transform(text="Hello, how are you?")
+    print(response)

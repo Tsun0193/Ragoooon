@@ -1,26 +1,27 @@
 import os
-from llama_index.core.llms import CustomLLM, CompletionResponse, CompletionResponseGen, LLMMetadata, LLM
-from llama_index.core.llms.callbacks import llm_completion_callback
-from huggingface_hub import InferenceClient
-from typing import Any, List
+from typing import Any, List, Optional
+
 from dotenv import load_dotenv
+from together import Together
+from huggingface_hub import InferenceClient
+from llama_index.core.llms import (
+    CustomLLM,
+    CompletionResponse,
+    CompletionResponseGen,
+    LLMMetadata,
+)
+from llama_index.core.llms.callbacks import llm_completion_callback
 
 load_dotenv('../../.env')
 
-client = InferenceClient(api_key=os.environ["HF_TOKEN"])
-
-def complete(user_text,
-             model = "meta-llama/Llama-3.2-3B-Instruct",
-             history: List[dict] = None) -> str:
-    # completion = Complete(
-    #     model="snowflake-arctic",
-    #     prompt=user_text,
-    #     session=snowflake_session,
-    # )
-    # return completion
-
+def complete(
+    user_text: str,
+    model: str = "meta-llama/Llama-3.2-3B-Instruct",
+    history: Optional[List[dict]] = None,
+    max_tokens: int = 256
+) -> str:
     if history:
-        messages = history
+        messages = history.copy()  # Avoid mutating the original history
     else:
         messages = []
 
@@ -29,50 +30,89 @@ def complete(user_text,
         "content": user_text
     })
 
-    completion = client.chat.completions.create(
-        model=model, 
-        messages=messages, 
-        max_tokens=256
-    )
+    # Decide which client to use based on the model
+    if model == "meta-llama/Llama-3.2-3B-Instruct":
+        client = InferenceClient(api_key=os.environ["HF_TOKEN"])
+    else:
+        client = Together(api_key=os.environ["TOGETHER_API_KEY"])
 
-    return completion.choices[0].message.content
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        raise RuntimeError(f"Failed to generate completion: {e}") from e
+
 
 class RagoonBot(CustomLLM):
     """
     RagoonBot is a custom LLM model that uses the Meta-LLAMA API to generate text completions.
     
+    :param model_name: str, default "mistral-large2". The model name to use.
     :param context_window: int, default 3900. The context window size.
     :param num_output: int, default 256. The number of output tokens.
-    :param model_name: str, default "mistral-large2". The model name to use.
     """
+
+    llm_model_name: str = "meta-llama/Llama-3.2-3B-Instruct"
     context_window: int = 3900
     num_output: int = 256
-    model_name: str = "mistral-large2"
+
+    def __init__(self, llm_model_name: str = "meta-llama/Llama-3.2-3B-Instruct", 
+                 **kwargs: Any):
+        super().__init__(**kwargs)
+        self.llm_model_name = llm_model_name
+        print(f"RagoonBot initialized with model: {self.llm_model_name}")
 
     @property
     def metadata(self) -> LLMMetadata:
-        """Get LLM metadata."""
         return LLMMetadata(
             context_window=self.context_window,
             num_output=self.num_output,
-            model_name=self.model_name,
+            model_name=self.llm_model_name,
         )
 
     @llm_completion_callback()
-    def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
-        response = complete(prompt)
+    def complete(
+        self,
+        prompt: str,
+        history: Optional[List[dict]] = None,
+        **kwargs: Any
+    ) -> CompletionResponse:
+        response = complete(
+            user_text=prompt,
+            model=self.llm_model_name,
+            history=history,
+            max_tokens=self.num_output
+        )
         return CompletionResponse(text=response)
 
     @llm_completion_callback()
     def stream_complete(
-        self, prompt: str, **kwargs: Any
+        self,
+        prompt: str,
+        history: Optional[List[dict]] = None,
+        **kwargs: Any
     ) -> CompletionResponseGen:
-        # In streaming mode, we'll still receive the full response at the end of generate.
-        # To truly stream token by token, you'd need to yield from within the generate function itself.
-        # Here we simulate token-level streaming by splitting the final response.
-        full_response = complete(prompt)
+        try:
+            full_response = complete(
+                user_text=prompt,
+                model=self.llm_model_name,
+                history=history,
+                max_tokens=self.num_output
+            )
+        except Exception as e:
+            yield CompletionResponse(text="", delta=f"Error: {e}")
+            return
 
         accumulated_text = ""
         for char in full_response:
             accumulated_text += char
             yield CompletionResponse(text=accumulated_text, delta=char)
+
+
+if __name__ == "__main__":
+    llm = RagoonBot(model_name="meta-llama/Llama-3.2-3B-Instruct")
+    print(llm.complete("Hello, how are you?").text)
