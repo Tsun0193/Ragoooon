@@ -10,7 +10,7 @@ from core.llm.CustomLLM import RagoonBot
 
 load_dotenv('../.env')
 
-app = FastAPI(title="RagoonBot API", description="API for RagoonBot, a custom LLM model.", version="0.1")
+app = FastAPI(title="RagoonBot API", description="API for RagoonBot, a custom LLM model.", version="0.1a")
 
 """
 This implementation instantiates a new RagoonBot instance for each request, which is not ideal for performance.
@@ -23,8 +23,7 @@ TODO: Serve SnowFlake Mistral LLM completions APIs instead for RagoonBot.
 class CompletionRequest(BaseModel):
     prompt: str
     history: Optional[List[dict]] = None
-    model: Optional[str] = Field("meta-llama/Llama-3.2-3B-Instruct", description="The model name to use.")
-    platform: Optional[str] = Field("huggingface", description='The platform to use: "huggingface" or "together".')
+    model: Optional[str] = Field("mistral-large2", description="The model name to use.")
 
 class CompletionResponse(BaseModel):
     text: str
@@ -35,8 +34,8 @@ class CompletionResponse(BaseModel):
 @app.post("/complete", response_model=CompletionResponse)
 def complete_request(request: CompletionRequest):
     try:
-        # Create a new instance of RagoonBot with the specified model & platform
-        llm = RagoonBot(model=request.model, platform=request.platform)
+        # Create a new instance of RagoonBot with the specified model
+        llm = RagoonBot(model=request.model)
         
         response = llm.complete(prompt=request.prompt, history=request.history)
         return CompletionResponse(text=response.text, llm_model=request.model)
@@ -46,8 +45,8 @@ def complete_request(request: CompletionRequest):
 @app.post("/stream_complete")
 def stream_complete_request(request: CompletionRequest):
     try:
-        # Create a new instance of RagoonBot with the specified model & platform
-        llm = RagoonBot(model=request.model, platform=request.platform)
+        # Create a new instance of RagoonBot with the specified model
+        llm = RagoonBot(model=request.model)
         
         generator = llm.stream_complete(prompt=request.prompt, history=request.history)
         return {"stream": [resp.delta for resp in generator]}

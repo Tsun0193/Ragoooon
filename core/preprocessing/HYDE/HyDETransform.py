@@ -11,16 +11,11 @@ from typing import Any
 warnings.filterwarnings("ignore")
 load_dotenv("../../.env")
 
-connection_params = {
-    "account": os.environ["SNOWFLAKE_ACCOUNT"],
-    "user": os.environ["SNOWFLAKE_USER"],
-    "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
-}
-snowflake_session = Session.builder.configs(connection_params).create()
+llm = RagoonBot()
 
 class HyDETransformer(HyDEQueryTransform):
     def __init__(self, 
-                 llm: LLM,
+                 llm: LLM = llm,
                  hyde_prompt: str = None,
                  include_original: bool = True):
         """
@@ -59,6 +54,6 @@ class HyDETransformer(HyDEQueryTransform):
         return response.custom_embedding_strs
     
 if __name__ == "__main__":
-    transformer = HyDETransformer(llm="meta-llama/Llama-3.2-3B-Instruct")
+    transformer = HyDETransformer()
     response = transformer.transform(text="Hello, how are you?")
     print(response)

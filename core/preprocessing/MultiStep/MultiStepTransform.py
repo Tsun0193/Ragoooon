@@ -9,7 +9,7 @@ load_dotenv('../../.env')
 llm = RagoonBot()
 
 class MultiStepTransformer:
-    def __init__(self, llm: Union[LLM, str]):
+    def __init__(self, llm: Union[LLM, str] = llm):
         """
         Initializes the MultiStepTransformer.
 
@@ -64,8 +64,8 @@ class MultiStepTransformer:
         return final_response
 
 
-# Example usage
-text = "What are the effects of schizophrenia on memory?"
-transformer = MultiStepTransformer(llm=llm)
+if __name__ == "__main__":
+    text = "What are the effects of schizophrenia on memory?"
+    transformer = MultiStepTransformer()
 
-print(transformer.transform(text))
+    print(transformer.transform(text))

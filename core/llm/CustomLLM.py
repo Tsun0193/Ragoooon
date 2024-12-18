@@ -2,8 +2,8 @@ import os
 from typing import Any, List, Optional
 
 from dotenv import load_dotenv
-from together import Together
-from huggingface_hub import InferenceClient
+from snowflake.snowpark import Session
+from snowflake.cortex import Complete
 from llama_index.core.llms import (
     CustomLLM,
     CompletionResponse,
@@ -14,78 +14,68 @@ from llama_index.core.llms.callbacks import llm_completion_callback
 
 load_dotenv('../../.env')
 
-def complete(
-    user_text: str,
-    model: str = "meta-llama/Llama-3.2-3B-Instruct",
-    platform: str = "huggingface",
-    history: Optional[List[dict]] = None,
-    max_tokens: int = 256
-) -> str:
-    if history:
-        messages = history.copy()  # Avoid mutating the original history
-    else:
-        messages = []
+connection_params = {
+    "account": os.environ["SNOWFLAKE_ACCOUNT"],
+    "user": os.environ["SNOWFLAKE_USER"],
+    "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
+}
 
-    messages.append({
-        "role": "user",
-        "content": user_text
-    })
+snowflake_session = Session.builder.configs(connection_params).create()
 
-    # Decide which client to use based on the platform
-    if platform == "huggingface":
-        client = InferenceClient(api_key=os.environ["HF_TOKEN"])
-    elif platform == "together":
-        client = Together(api_key=os.environ["TOGETHER_API_KEY"])
-    else:
-        raise ValueError(f"Unsupported platform: {platform}")
+def complete(user_text: str,
+             model: str = "mistral-large2",
+             history: Optional[List[dict]] = None) -> str:
+    """
+    Perform a completion using Snowflake's Complete API.
 
-    try:
-        completion = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        raise RuntimeError(f"Failed to generate completion: {e}") from e
-
+    :param user_text: The input prompt for the model.
+    :param model: The model to use for completion.
+    :param history: Optional history of previous interactions.
+    :return: The generated completion text.
+    """
+    completion = Complete(
+        model=model,
+        prompt=user_text,
+        session=snowflake_session
+    )
+    
+    return completion
 
 class RagoonBot(CustomLLM):
     """
-    RagoonBot is a custom LLM model that uses the specified platform's API to generate text completions.
+    RagoonBot is a custom LLM model that uses Snowflake's Complete API to generate text completions.
 
-    :param model: str, default "meta-llama/Llama-3.2-3B-Instruct". The model name to use.
-    :param platform: str, default "huggingface". The platform to use ("huggingface" or "together").
+    :param model: str, default "mistral-large2". The model name to use.
     :param context_window: int, default 3900. The context window size.
-    :param num_output: int, default 256. The number of output tokens.
     """
-
-    model: str = "meta-llama/Llama-3.2-3B-Instruct"
-    platform: str = "huggingface"
-    context_window: int = 3900
-    num_output: int = 256
+    model: str = "mistral-large2"
 
     def __init__(
         self, 
-        model: str = "meta-llama/Llama-3.2-3B-Instruct",
-        platform: str = "huggingface",
-        context_window: int = 3900,
-        num_output: int = 256,
+        model: str = "mistral-large2",
         **kwargs: Any
     ):
+        """
+        Initialize the RagoonBot instance.
+
+        :param model: The model name to use for completions.
+        :param context_window: The context window size.
+        :param kwargs: Additional keyword arguments.
+        """
         super().__init__(**kwargs)
         self.model = model
-        self.platform = platform
-        self.context_window = context_window
-        self.num_output = num_output
-        print(f"RagoonBot initialized with model: {self.model} and platform: {self.platform}")
+        print(f"RagoonBot initialized with model: {self.model}")
 
     @property
     def metadata(self) -> LLMMetadata:
+        """
+        Provide metadata about the LLM.
+
+        :return: An instance of LLMMetadata containing model information.
+        """
         return LLMMetadata(
-            context_window=self.context_window,
-            num_output=self.num_output,
-            model_name=self.model,
+            num_output=1,
+            model_name=self.model
         )
 
     @llm_completion_callback()
@@ -95,14 +85,23 @@ class RagoonBot(CustomLLM):
         history: Optional[List[dict]] = None,
         **kwargs: Any
     ) -> CompletionResponse:
-        response = complete(
-            user_text=prompt,
-            model=self.model,
-            platform=self.platform,
-            history=history,
-            max_tokens=self.num_output
-        )
-        return CompletionResponse(text=response)
+        """
+        Generate a completion for the given prompt.
+
+        :param prompt: The input text prompt.
+        :param history: Optional history of previous interactions.
+        :return: A CompletionResponse containing the generated text.
+        """
+        try:
+            response_text = complete(
+                user_text=prompt,
+                model=self.model,
+                history=history
+            )
+        except Exception as e:
+            response_text = f"Error: {e}"
+
+        return CompletionResponse(text=response_text)
 
     @llm_completion_callback()
     def stream_complete(
@@ -111,13 +110,18 @@ class RagoonBot(CustomLLM):
         history: Optional[List[dict]] = None,
         **kwargs: Any
     ) -> CompletionResponseGen:
+        """
+        Generate a streamed completion for the given prompt.
+
+        :param prompt: The input text prompt.
+        :param history: Optional history of previous interactions.
+        :yield: Partial CompletionResponses as text is generated.
+        """
         try:
             full_response = complete(
                 user_text=prompt,
                 model=self.model,
-                platform=self.platform,
-                history=history,
-                max_tokens=self.num_output
+                history=history
             )
         except Exception as e:
             yield CompletionResponse(text="", delta=f"Error: {e}")
@@ -128,12 +132,7 @@ class RagoonBot(CustomLLM):
             accumulated_text += char
             yield CompletionResponse(text=accumulated_text, delta=char)
 
-
 if __name__ == "__main__":
-    # Example using HuggingFace platform
-    llm = RagoonBot(model="meta-llama/Llama-3.2-3B-Instruct", platform="huggingface")
-    print(llm.complete("Hello, how are you?").text)
-
-    # Example using Together platform
-    # llm = RagoonBot(model="some-together-model", platform="together")
-    # print(llm.complete("Hello, how are you?").text)
+    llm = RagoonBot(model="mistral-large2")
+    response = llm.complete("Hello, how are you?")
+    print(response)
