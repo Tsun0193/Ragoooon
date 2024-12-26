@@ -1,4 +1,5 @@
 from core.llm.CustomLLM import RagoonBot
+import os
 from dotenv import load_dotenv
 from snowflake.snowpark.session import Session
 from snowflake.core import Root
@@ -88,3 +89,31 @@ class Rag:
 
         return response
         
+
+if __name__ == "__main__":
+
+    connection_params = {
+    "account":  os.environ["SNOWFLAKE_ACCOUNT"],
+    "user": os.environ["SNOWFLAKE_USER"],
+    "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
+    "role": os.environ["SNOWFLAKE_ROLE"],
+    "database": os.environ["SNOWFLAKE_DATABASE"],
+    "schema": os.environ["SNOWFLAKE_SCHEMA"],
+    "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+    }
+
+    snowpark_session = Session.builder.configs(connection_params).create()
+
+    rag = Rag(
+        llm=llm,
+        transformers=None,
+        snowpark_session=snowpark_session,
+        snowflake_params=connection_params,
+    )
+    
+    response = rag.complete("Where should I eat in Hanoi?")
+    print(response)
+
+    if snowpark_session:
+            # Close the Snowflake session
+        snowpark_session.close()
