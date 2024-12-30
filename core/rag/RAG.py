@@ -39,14 +39,14 @@ class Rag:
         self.snowflake_params = snowflake_params
         self.search_columns = search_columns
         self.retrieve_column = retrieve_column
-
+        print(self.snowflake_params.get("service"), self.snowflake_params.get("database"), self.snowflake_params.get("schema"))
 
     def retrieve(self, query: str) -> List[str]:
         root = Root(self._snowpark_session)
         cortex_search_service = (
-            root.databases[self.snowflake_params.get("SNOWFLAKE_DATABASE")]
-            .schemas[self.snowflake_params.get("SNOWFLAKE_SCHEMA")]
-            .cortex_search_services[self.snowflake_params.get("SNOWFLAKE_CORTEX_SEARCH_SERVICE")]
+            root.databases[self.snowflake_params.get("database")]
+            .schemas[self.snowflake_params.get("schema")]
+            .cortex_search_services[self.snowflake_params.get("service")]
         )
         resp = cortex_search_service.search(
             query=query,
@@ -99,7 +99,8 @@ if __name__ == "__main__":
         "role": os.environ["SNOWFLAKE_ROLE"],
         "database": os.environ["SNOWFLAKE_DATABASE"],
         "schema": os.environ["SNOWFLAKE_SCHEMA"],
-        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"]
+        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+        "service": os.environ["SNOWFLAKE_CORTEX_SEARCH_SERVICE"],
     }
 
     snowpark_session = Session.builder.configs(connection_params).create()
