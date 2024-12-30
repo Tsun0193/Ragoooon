@@ -44,9 +44,9 @@ class Rag:
     def retrieve(self, query: str) -> List[str]:
         root = Root(self._snowpark_session)
         cortex_search_service = (
-            root.databases[self.snowflake_params["SNOWFLAKE_DATABASE"]]
-            .schemas[self.snowflake_params["SNOWFLAKE_SCHEMA"]]
-            .cortex_search_services[self.snowflake_params["SNOWFLAKE_CORTEX_SEARCH_SERVICE"]]
+            root.databases[self.snowflake_params.get("SNOWFLAKE_DATABASE")]
+            .schemas[self.snowflake_params.get("SNOWFLAKE_SCHEMA")]
+            .cortex_search_services[self.snowflake_params.get("SNOWFLAKE_CORTEX_SEARCH_SERVICE")]
         )
         resp = cortex_search_service.search(
             query=query,
@@ -93,13 +93,13 @@ class Rag:
 if __name__ == "__main__":
 
     connection_params = {
-    "account":  os.environ["SNOWFLAKE_ACCOUNT"],
-    "user": os.environ["SNOWFLAKE_USER"],
-    "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
-    "role": os.environ["SNOWFLAKE_ROLE"],
-    "database": os.environ["SNOWFLAKE_DATABASE"],
-    "schema": os.environ["SNOWFLAKE_SCHEMA"],
-    "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+        "account":  os.environ["SNOWFLAKE_ACCOUNT"],
+        "user": os.environ["SNOWFLAKE_USER"],
+        "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
+        "role": os.environ["SNOWFLAKE_ROLE"],
+        "database": os.environ["SNOWFLAKE_DATABASE"],
+        "schema": os.environ["SNOWFLAKE_SCHEMA"],
+        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"]
     }
 
     snowpark_session = Session.builder.configs(connection_params).create()
