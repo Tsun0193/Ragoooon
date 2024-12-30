@@ -39,7 +39,7 @@ class Rag:
         self.snowflake_params = snowflake_params
         self.search_columns = search_columns
         self.retrieve_column = retrieve_column
-        print(self.snowflake_params.get("service"), self.snowflake_params.get("database"), self.snowflake_params.get("schema"))
+
 
     def retrieve(self, query: str) -> List[str]:
         root = Root(self._snowpark_session)
