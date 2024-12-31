@@ -101,17 +101,9 @@ def rag_complete_request(request: RAGCompleteRequest):
         rag = Rag(llm=llm)
 
         # Generate the completion response
-        completion_response = rag.complete(prompt=request.prompt)
+        response = rag.complete(prompt=request.prompt)
 
-        # Extract text if the response is of type CompletionResponse
-        if isinstance(completion_response, CompletionResponse):
-            text = completion_response.text
-        else:
-            text = completion_response  # Assume it's already a string
 
-        return RAGCompleteResponse(
-            text=text,
-            rag_model=request.model
-        )
+        return RAGCompleteResponse(text=response.text, rag_model=request.model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

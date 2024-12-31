@@ -5,7 +5,7 @@ from snowflake.snowpark.session import Session
 from snowflake.core import Root
 from snowflake.cortex import Complete
 from llama_index.core.llms import LLM
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Callable, Union
 
 
 load_dotenv('../../.env')
@@ -34,7 +34,7 @@ class Rag:
     def __init__(
         self, 
         llm: LLM = llm,
-        transformers: Any = None, #TODO: add default transformers
+        transformers: Union[str, List[str]] = None,
         snowpark_session: Session = snowpark_session,
         limit_to_retrieve: int = 4,
         snowflake_params: Dict[str, str] = connection_params,
@@ -50,7 +50,12 @@ class Rag:
             self.llm = RagoonBot(model=llm)
         else:
             self.llm = llm
-        self.transformers = transformers
+        
+        if isinstance(transformers, str):
+            self.transformers = [transformers]
+        else:
+            self.transformers = transformers
+
         self._snowpark_session = snowpark_session
         self._limit_to_retrieve = limit_to_retrieve
         self.snowflake_params = snowflake_params
@@ -82,13 +87,15 @@ class Rag:
         contexts: List[str] = [],
         query: str = None,
     ):
+        if self.transformers is not None:
+            for transformer in 
         context = "\n\n".join(contexts)
         prompt = ( #TODO: prompting
-        "You are an assistant for tourism and travel tasks. Use the following pieces of "
-        "retrieved context to answer the question. If you don't know the answer, say that you "
-        "don't know. Keep the answer concise."
-        "\n\nContext:\n" + context + "\n\nQuestion:\n" + query
-    )
+            "You are an assistant for tourism and travel tasks. Use the following pieces of "
+            "retrieved context to answer the question. If you don't know the answer, say that you "
+            "don't know. Keep the answer concise."
+            "\n\nContext:\n" + context + "\n\nQuestion:\n" + query
+        )
 
         response = self.llm.complete(prompt)
         return response
@@ -120,5 +127,5 @@ if __name__ == "__main__":
     print(response)
 
     if snowpark_session:
-            # Close the Snowflake session
+        # Close the Snowflake session
         snowpark_session.close()
