@@ -11,18 +11,35 @@ from typing import Any, List, Dict
 load_dotenv('../../.env')
 llm = RagoonBot()
 
+try:
+    connection_params = {
+        "account":  os.environ["SNOWFLAKE_ACCOUNT"],
+        "user": os.environ["SNOWFLAKE_USER"],
+        "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
+        "role": os.environ["SNOWFLAKE_ROLE"],
+        "database": os.environ["SNOWFLAKE_DATABASE"],
+        "schema": os.environ["SNOWFLAKE_SCHEMA"],
+        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+        "service": os.environ["SNOWFLAKE_CORTEX_SEARCH_SERVICE"],
+    }
+except KeyError as e:
+    print("Please set the environment variable: " + str(e))
+
+try:
+    snowpark_session = Session.builder.configs(connection_params).create()
+except Exception as e:
+    print("Error creating Snowpark session: " + str(e))
 
 class Rag:
     def __init__(
         self, 
         llm: LLM = llm,
         transformers: Any = None, #TODO: add default transformers
-        snowpark_session: Session = None, #TODO
+        snowpark_session: Session = snowpark_session,
         limit_to_retrieve: int = 4,
-        snowflake_params: Dict[str, str] = {},
+        snowflake_params: Dict[str, str] = connection_params,
         search_columns: List[str] = ["NAME", "INFORMATION"],
-        retrieve_column: str = "INFORMATION",
-        
+        retrieve_column: str = "INFORMATION"
     ):
         """
         Initialize the RAG instance.
@@ -78,38 +95,25 @@ class Rag:
 
     def complete(
         self,
-        text: str
+        prompt: str,
+        **kwargs
     ):
         if self.transformers is not None:
             for transformer in self.transformers:
-                text = transformer.transform(text)
+                prompt = transformer.transform(prompt)
 
-        retrieved_contexts = self.retrieve(text)
-        response = self.generate_response(retrieved_contexts, text)
+        retrieved_contexts = self.retrieve(prompt)
+        response = self.generate_response(retrieved_contexts, prompt)
 
         return response
         
 
 if __name__ == "__main__":
-
-    connection_params = {
-        "account":  os.environ["SNOWFLAKE_ACCOUNT"],
-        "user": os.environ["SNOWFLAKE_USER"],
-        "password": os.environ["SNOWFLAKE_USER_PASSWORD"],
-        "role": os.environ["SNOWFLAKE_ROLE"],
-        "database": os.environ["SNOWFLAKE_DATABASE"],
-        "schema": os.environ["SNOWFLAKE_SCHEMA"],
-        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
-        "service": os.environ["SNOWFLAKE_CORTEX_SEARCH_SERVICE"],
-    }
-
-    snowpark_session = Session.builder.configs(connection_params).create()
-
     rag = Rag(
         llm=llm,
         transformers=None,
         snowpark_session=snowpark_session,
-        snowflake_params=connection_params,
+        snowflake_params=connection_params
     )
     
     response = rag.complete("Where should I eat in Hanoi?")

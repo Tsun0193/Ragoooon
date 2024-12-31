@@ -33,13 +33,24 @@ def complete(user_text: str,
     :param history: Optional history of previous interactions.
     :return: The generated completion text.
     """
-    completion = Complete(
-        model=model,
-        prompt=user_text,
-        session=snowflake_session
-    )
-    
-    return completion
+    # Combine history with the user prompt
+    history_text = ""
+    if history:
+        history_text = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history])
+
+    # Create the full prompt
+    full_prompt = f"{history_text}\nUser: {user_text}\nAssistant:"
+
+    # Perform the completion
+    try:
+        completion = Complete(
+            model=model,
+            prompt=full_prompt,
+            session=snowflake_session
+        )
+        return completion
+    except Exception as e:
+        return f"Error: {e}"
 
 class RagoonBot(CustomLLM):
     """
