@@ -1,11 +1,15 @@
-from core.llm.CustomLLM import RagoonBot
 import os
+
 from dotenv import load_dotenv
 from snowflake.snowpark.session import Session
 from snowflake.core import Root
 from snowflake.cortex import Complete
 from llama_index.core.llms import LLM
 from typing import Any, List, Dict, Callable, Union
+
+from core.llm.CustomLLM import RagoonBot
+from core.preprocessing.HYDE.HyDETransform import HyDETransformer
+from core.preprocessing.MultiStep.MultiStepTransform import MultiStepTransformer
 
 
 load_dotenv('../../.env')
@@ -29,6 +33,11 @@ try:
     snowpark_session = Session.builder.configs(connection_params).create()
 except Exception as e:
     print("Error creating Snowpark session: " + str(e))
+
+transforms = {
+    'HyDE': HyDETransformer(),
+    # 'MultiStep': MultiStepTransformer()
+}
 
 class Rag:
     def __init__(
@@ -87,14 +96,17 @@ class Rag:
         contexts: List[str] = [],
         query: str = None,
     ):
+        _query = query
         if self.transformers is not None:
-            for transformer in 
+            for _transformer in self.transformers:
+                prime = transforms.get(_transformer)
+                _query = prime.transform(query)[0]
         context = "\n\n".join(contexts)
         prompt = ( #TODO: prompting
             "You are an assistant for tourism and travel tasks. Use the following pieces of "
             "retrieved context to answer the question. If you don't know the answer, say that you "
             "don't know. Keep the answer concise."
-            "\n\nContext:\n" + context + "\n\nQuestion:\n" + query
+            "\n\nContext:\n" + context + "\n\nQuestion:\n" + _query
         )
 
         response = self.llm.complete(prompt)
@@ -105,12 +117,14 @@ class Rag:
         prompt: str,
         **kwargs
     ):
+        _prompt = prompt
         if self.transformers is not None:
-            for transformer in self.transformers:
-                prompt = transformer.transform(prompt)
+            for _transformer in self.transformers:
+                prime = transforms.get(_transformer)
+                _prompt = prime.transform(prompt)[0]
 
-        retrieved_contexts = self.retrieve(prompt)
-        response = self.generate_response(retrieved_contexts, prompt)
+        retrieved_contexts = self.retrieve(_prompt)
+        response = self.generate_response(retrieved_contexts, _prompt)
 
         return response
         
@@ -118,7 +132,7 @@ class Rag:
 if __name__ == "__main__":
     rag = Rag(
         llm=llm,
-        transformers=None,
+        transformers="HyDE",
         snowpark_session=snowpark_session,
         snowflake_params=connection_params
     )

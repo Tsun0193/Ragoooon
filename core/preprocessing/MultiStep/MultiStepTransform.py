@@ -61,7 +61,7 @@ class MultiStepTransformer:
 
         # Combine all sub-query results into one final response
         final_response = "\n".join(results)
-        return final_response
+        return [final_response]
 
 
 if __name__ == "__main__":
