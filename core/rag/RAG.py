@@ -36,7 +36,7 @@ except Exception as e:
 
 transforms = {
     'HyDE': HyDETransformer(),
-    # 'MultiStep': MultiStepTransformer()
+    'MultiStep': MultiStepTransformer()
 }
 
 class Rag:
@@ -96,18 +96,28 @@ class Rag:
         contexts: List[str] = [],
         query: str = None,
     ):
-        _query = query
+        _query = [query]
         if self.transformers is not None:
             for _transformer in self.transformers:
-                prime = transforms.get(_transformer)
-                _query = prime.transform(query)[0]
+                try:
+                    prime = transforms.get(_transformer)
+                except KeyError as e:
+                    print("Transformer not found: " + str(e))
+                    continue
+
+                temp = []
+                for _q in _query:
+                    temp.extend(prime.transform(_q))
+                _query = temp
+
         context = "\n\n".join(contexts)
         prompt = ( #TODO: prompting
             "You are an assistant for tourism and travel tasks. Use the following pieces of "
             "retrieved context to answer the question. If you don't know the answer, say that you "
             "don't know. Keep the answer concise."
-            "\n\nContext:\n" + context + "\n\nQuestion:\n" + _query
         )
+        for _q in _query:
+            prompt += "\n\nContext:\n" + context + "\n\nQuestion:\n" + _q
 
         response = self.llm.complete(prompt)
         return response
@@ -132,7 +142,7 @@ class Rag:
 if __name__ == "__main__":
     rag = Rag(
         llm=llm,
-        transformers="HyDE",
+        transformers=["MultiStep", "HyDE"],
         snowpark_session=snowpark_session,
         snowflake_params=connection_params
     )
