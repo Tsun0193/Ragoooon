@@ -6,7 +6,7 @@ from llama_index.core.llms import LLM
 from snowflake.snowpark import Session
 from snowflake.cortex import Complete
 from dotenv import load_dotenv
-from typing import Any
+from typing import Any, Union, List
 
 warnings.filterwarnings("ignore")
 load_dotenv("../../.env")
@@ -39,7 +39,7 @@ class HyDETransformer(HyDEQueryTransform):
 
     def transform(
         self,
-        text: str = None
+        text: Union[str, List[str], List[List[str]]] = None
     ):
         """
         Transforms the input text into hypothetical document embeddings.
@@ -50,10 +50,21 @@ class HyDETransformer(HyDEQueryTransform):
         if text is None:
             return "Please provide a text to transform."
         
-        response = self.run(text)
-        return response.custom_embedding_strs
+        if isinstance(text, str):
+            text = [text]
+
+        if isinstance(text[0], list) and len(text) == 1:
+            text = text[0]
+
+        try:
+            response = [self.run(t) for t in text]
+        except Exception as e:
+            raise Exception(f"Error transforming the input text: {str(e)}")
+        response = [r for r in response if r.custom_embedding_strs]
+        response = [r.custom_embedding_strs[:-1] for r in response]
+        return response
     
 if __name__ == "__main__":
     transformer = HyDETransformer()
-    response = transformer.transform(text="Hello, how are you?")
+    response = transformer.transform(text=[["Hello, how are you?", "What is the purpose of life?"]])
     print(response)

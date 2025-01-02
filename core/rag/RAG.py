@@ -1,4 +1,5 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from snowflake.snowpark.session import Session
@@ -94,47 +95,58 @@ class Rag:
     def generate_response(
         self,
         contexts: List[str] = [],
-        query: str = None,
+        query: str = None
     ):
-        _query = [query]
-        if self.transformers is not None:
-            for _transformer in self.transformers:
-                try:
-                    prime = transforms.get(_transformer)
-                except KeyError as e:
-                    print("Transformer not found: " + str(e))
-                    continue
+        assert query is not None, "Query cannot be None."
 
-                temp = []
-                for _q in _query:
-                    temp.extend(prime.transform(_q))
-                _query = temp
+        if not contexts:
+            context = "None"
 
         context = "\n\n".join(contexts)
         prompt = ( #TODO: prompting
             "You are an assistant for tourism and travel tasks. Use the following pieces of "
             "retrieved context to answer the question. If you don't know the answer, say that you "
-            "don't know. Keep the answer concise."
+            "don't know. Keep the answer concise. Restate the questions before answering."
         )
-        for _q in _query:
-            prompt += "\n\nContext:\n" + context + "\n\nQuestion:\n" + _q
+        prompt += f"\n\nContext: {context} \n\nQuery: {query}"
 
         response = self.llm.complete(prompt)
         return response
 
     def complete(
         self,
-        prompt: str,
+        prompts: Union[str, List[str]] = None,
         **kwargs
     ):
-        _prompt = prompt
+        """
+        Completes the prompt using the RAG model.
+
+        :param prompts: str. The prompts to complete.
+        :return: str. The completed prompts.
+        """
+        assert prompts is not None, "Prompt cannot be None."
+        
+        if isinstance(prompts, str):
+            _prompt = [[prompts]]
+            original_prompt = prompts
+
+        if isinstance(prompts, list):
+            _prompt = [prompts]
+            original_prompt = prompts[0]
+
         if self.transformers is not None:
             for _transformer in self.transformers:
                 prime = transforms.get(_transformer)
-                _prompt = prime.transform(prompt)[0]
+                _prompt = prime.transform(_prompt)
 
-        retrieved_contexts = self.retrieve(_prompt)
-        response = self.generate_response(retrieved_contexts, _prompt)
+        retrieved_contexts = []
+        for _p in _prompt:
+            retrieved_contexts.extend(self.retrieve(_p[0]))
+        
+        response = self.generate_response(
+            contexts=retrieved_contexts,
+            query=original_prompt
+        )
 
         return response
         

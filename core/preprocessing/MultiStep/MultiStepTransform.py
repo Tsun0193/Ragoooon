@@ -23,7 +23,8 @@ class MultiStepTransformer:
         else:
             self.llm = llm
 
-    def transform(self, text: str, max_queries: int = 5,
+    def transform(self, text: Union[str, List[str], List[List[str]]],
+                  max_queries: int = 5,
                   **kwargs) -> List[str]:
         """
         Decomposes the input query into multiple sub-queries (steps) for a step-by-step answer.
@@ -33,27 +34,31 @@ class MultiStepTransformer:
         :return: List of sub-queries.
         """
         # Prompt the model to break down the input query into sub-queries
-        decomposition_prompt = f"Please break down the question '{text}' into smaller sub-queries that can be answered one by one. No more than {max_queries} sub-queries."
+        if isinstance(text, str):
+            text = [text]
+
+        if isinstance(text[0], list) and len(text) == 1:
+            text = text[0]
+
+        decomposition_prompts = [f"Please break down the question '{_t}' into smaller sub-queries that can be answered one by one. No more than {max_queries} sub-queries." for _t in text]
 
         try:
-            decomposition = self.llm.complete(decomposition_prompt, temperature=0.2)
-            decomposition = decomposition.text
+            decompositions = [self.llm.complete(decomposition_prompt, temperature=0.2) for decomposition_prompt in decomposition_prompts]
+            decompositions = [decomposition.text for decomposition in decompositions]
         except Exception as e:
             raise Exception(f"Error decomposing the input query: {str(e)}")
 
-        # Clean the decomposition output to get individual sub-queries
         try:
-            sub_queries = decomposition.split('\n')
-            sub_queries = [sub_query.strip() for sub_query in sub_queries if sub_query.strip()]
-            sub_queries = sub_queries[1:]  # Remove the first sub-query which is the prompt
+            sub_queries = [decomposition.split("\n")[1:] for decomposition in decompositions]
+            sub_queries = [[sub_query for sub_query in sub_query_list if sub_query] for sub_query_list in sub_queries]
         except Exception as e:
-            raise Exception(f"Error processing the decomposition output: {str(e)}")
+            raise Exception(f"Error extracting sub-queries: {str(e)}")
         
         return sub_queries
 
 
 if __name__ == "__main__":
-    text = "What are the effects of schizophrenia on memory?"
+    text = [["What are the effects of schizophrenia on memory?"]]
     transformer = MultiStepTransformer()
 
     print(transformer.transform(text))
