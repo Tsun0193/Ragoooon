@@ -122,7 +122,7 @@ def rag_stream_complete_request(request: RAGChatRequest):
         rag = Rag(llm=llm)
 
         # Generate the completion response
-        generator = rag.stream_complete(prompts=request.prompts)
+        generator = rag.stream_complete(prompts=request.prompts, history=request.history)
 
         updated_history = request.history if request.history else []
         updated_history.append({"role": "User", "content": request.prompts})
