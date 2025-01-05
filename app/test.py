@@ -124,7 +124,10 @@ def rag_stream_complete_request(request: RAGChatRequest):
         # Generate the completion response
         generator = rag.stream_complete(prompts=request.prompts)
 
+        updated_history = request.history if request.history else []
+        updated_history.append({"role": "User", "content": request.prompts})
+
         return {"stream": [resp.delta for resp in generator],
-                "updated_history": request.history}
+                "updated_history": updated_history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
