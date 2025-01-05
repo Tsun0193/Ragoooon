@@ -44,7 +44,7 @@ class Rag:
     def __init__(
         self, 
         llm: LLM = llm,
-        transformers: Union[str, List[str]] = None,
+        transformers: Union[str, List[str]] = ["MultiStep", "HyDE"],
         snowpark_session: Session = snowpark_session,
         limit_to_retrieve: int = 4,
         snowflake_params: Dict[str, str] = connection_params,
@@ -148,17 +148,19 @@ class Rag:
         for _p in _prompt:
             retrieved_contexts.extend(self.retrieve(_p[0]))
         
-        response = self.generate_response(
-            contexts=retrieved_contexts,
-            history=history,
-            query=original_prompt
-        )
+        try:
+            response = self.generate_response(
+                contexts=retrieved_contexts,
+                history=history,
+                query=original_prompt
+            )
+            return response.text
+        except Exception as e:
+            return f"Error: {e}"
 
-        return CompletionResponse(text=response.text)
-        
     def stream_complete(
         self,
-        prompt: str,
+        prompts: str,
         history: Optional[List[dict]] = None,
         **kwargs: Any
     ):
@@ -170,7 +172,7 @@ class Rag:
         :yield: Partial CompletionResponses as text is generated.
         """
         try:
-            full_response = self.complete(prompt, history=history)
+            full_response = self.complete(prompts=prompts, history=history)
         except Exception as e:
             yield CompletionResponse(text="", delta=f"Error: {e}")
             return
@@ -182,10 +184,7 @@ class Rag:
 
 if __name__ == "__main__":
     rag = Rag(
-        llm=llm,
-        transformers=["MultiStep", "HyDE"],
-        snowpark_session=snowpark_session,
-        snowflake_params=connection_params
+        llm=llm
     )
     
     response = rag.complete("Where should I eat in Hanoi?")
