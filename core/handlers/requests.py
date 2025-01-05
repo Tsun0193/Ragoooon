@@ -15,6 +15,6 @@ class RAGCompleteRequest(BaseModel):
     model: Optional[str] = Field("mistral-large2", description="The model name to use.")
 
 class RAGChatRequest(BaseModel):
-    prompt: str
+    prompts: str
     history: Optional[List[dict]] = Field([], description="The history of previous interactions.")
     model: Optional[str] = Field("mistral-large2", description="The model name to use.")

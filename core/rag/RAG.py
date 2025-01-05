@@ -44,7 +44,7 @@ class Rag:
     def __init__(
         self, 
         llm: LLM = llm,
-        transformers: Union[str, List[str]] = None,
+        transformers: Union[str, List[str]] = ["MultiStep", "HyDE"],
         snowpark_session: Session = snowpark_session,
         limit_to_retrieve: int = 4,
         snowflake_params: Dict[str, str] = connection_params,
@@ -105,16 +105,23 @@ class Rag:
             context = "None"
 
         context = "\n\n".join(contexts)
+        # Combine history with the user prompt
+        # start with assistant introducing itself
+        history_text = "Assistant: Hello, I am Ragoon, an assistant for tourism and travel tasks."
+        if history:
+            history_text += "\n".join([f"{entry['role']}: {entry['content']}" for entry in history])
+
         prompt = f"""
-            Given the messages between a user and an assistant:
-            {history}
-            You are an assistant for tourism and travel tasks. Use the following pieces of
-            retrieved context to answer the question. If you don't know the answer, say that you
-            don't know. Keep the answer concise. Restate the questions before answering.
+            These are the messages between a user and an assistant:
+            {history_text}
+            Now, use the following pieces of retrieved context to complete the conversation by answering the user's question. 
+            If you don't know the answer, say that you don't know. 
+            Keep the answer concise.
         """
         prompt += f"\n\nContext: {context} \n\nQuery: {query}"
 
         response = self.llm.complete(prompt)
+        print(prompt)
         return response
 
     def complete(
@@ -122,7 +129,7 @@ class Rag:
         prompts: Union[str, List[str]] = None,
         history: Optional[List[dict]] = None,
         **kwargs
-    ) -> CompletionResponse:
+    ):
         """
         Completes the prompt using the RAG model.
 
@@ -148,20 +155,23 @@ class Rag:
         for _p in _prompt:
             retrieved_contexts.extend(self.retrieve(_p[0]))
         
-        response = self.generate_response(
-            contexts=retrieved_contexts,
-            history=history,
-            query=original_prompt
-        )
-
-        return CompletionResponse(text=response.text)
+        try:
+            response = self.generate_response(
+                contexts=retrieved_contexts,
+                query=original_prompt,
+                history=history
+            )
+        except Exception as e:
+            return f"Error: {e}"
         
+        return response.text
+
     def stream_complete(
         self,
-        prompt: str,
+        prompts: str,
         history: Optional[List[dict]] = None,
         **kwargs: Any
-    ):
+    ) -> CompletionResponseGen:
         """
         Generate a streamed completion for the given prompt.
 
@@ -170,22 +180,19 @@ class Rag:
         :yield: Partial CompletionResponses as text is generated.
         """
         try:
-            full_response = self.complete(prompt, history=history)
+            full_response = self.complete(prompts=prompts, history=history)
         except Exception as e:
             yield CompletionResponse(text="", delta=f"Error: {e}")
             return
 
         accumulated_text = ""
-        for char in full_response:
-            accumulated_text += char
-            yield CompletionResponse(text=accumulated_text, delta=char)
+        for r in full_response:
+            accumulated_text += r
+            yield CompletionResponse(text=accumulated_text, delta=r)
 
 if __name__ == "__main__":
     rag = Rag(
-        llm=llm,
-        transformers=["MultiStep", "HyDE"],
-        snowpark_session=snowpark_session,
-        snowflake_params=connection_params
+        llm=llm
     )
     
     response = rag.complete("Where should I eat in Hanoi?")

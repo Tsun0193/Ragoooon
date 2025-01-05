@@ -87,7 +87,7 @@ def stream_chat_request(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/rag_complete", response_model=RAGCompleteResponse)
+@app.post("/rag", response_model=RAGCompleteResponse)
 def rag_complete_request(request: RAGCompleteRequest):
     """
     Retrieve and generate a response using the RAG model.
@@ -101,15 +101,15 @@ def rag_complete_request(request: RAGCompleteRequest):
         rag = Rag(llm=llm)
 
         # Generate the completion response
-        response = rag.complete(prompt=request.prompt)
+        response = rag.complete(prompts=request.prompt)
 
 
         return RAGCompleteResponse(text=response.text, rag_model=request.model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/rag_stream_complete")
-def rag_stream_complete_request(request: RAGCompleteRequest):
+@app.post("/stream_rag")
+def rag_stream_complete_request(request: RAGChatRequest):
     """
     Retrieve and generate a streamed response using the RAG model.
 
@@ -122,8 +122,12 @@ def rag_stream_complete_request(request: RAGCompleteRequest):
         rag = Rag(llm=llm)
 
         # Generate the completion response
-        generator = rag.stream_complete(prompt=request.prompt)
+        generator = rag.stream_complete(prompts=request.prompts, history=request.history)
 
-        return {"stream": [resp.delta for resp in generator]}
+        updated_history = request.history if request.history else []
+        updated_history.append({"role": "User", "content": request.prompts})
+
+        return {"stream": [resp.delta for resp in generator],
+                "updated_history": updated_history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
