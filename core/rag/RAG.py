@@ -163,7 +163,7 @@ class Rag:
         prompts: str,
         history: Optional[List[dict]] = None,
         **kwargs: Any
-    ):
+    ) -> CompletionResponseGen:
         """
         Generate a streamed completion for the given prompt.
 
