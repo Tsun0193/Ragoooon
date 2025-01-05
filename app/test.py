@@ -107,3 +107,23 @@ def rag_complete_request(request: RAGCompleteRequest):
         return RAGCompleteResponse(text=response.text, rag_model=request.model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/rag_stream_complete")
+def rag_stream_complete_request(request: RAGCompleteRequest):
+    """
+    Retrieve and generate a streamed response using the RAG model.
+
+    :param request: RAGCompleteRequest containing the user prompt.
+    :return: The RAG completion response.
+    """
+    try:
+        # Create a new instance of RagoonBot with the specified model
+        llm = RagoonBot(model=request.model)
+        rag = Rag(llm=llm)
+
+        # Generate the completion response
+        generator = rag.stream_complete(prompt=request.prompt)
+
+        return {"stream": [resp.delta for resp in generator]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
