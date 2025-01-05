@@ -2,7 +2,7 @@ import os
 from core.llm.CustomLLM import RagoonBot
 from llama_index.core.llms import LLM
 from dotenv import load_dotenv
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Callable
 
 load_dotenv('../../.env')
 
@@ -16,11 +16,16 @@ class MultiStepTransformer:
         :param llm: LLM, default None. The LLM model to use.
         """
         if isinstance(llm, str):
-            self.llm = RagoonBot(model=llm)
+            try:
+                self.llm = RagoonBot(model=llm)
+            except Exception as e:
+                raise Exception(f"Error initializing LLM model: {str(e)}")
         else:
             self.llm = llm
 
-    def decompose_query(self, text: str) -> List[str]:
+    def transform(self, text: Union[str, List[str], List[List[str]]],
+                  max_queries: int = 5,
+                  **kwargs) -> List[str]:
         """
         Decomposes the input query into multiple sub-queries (steps) for a step-by-step answer.
         Each sub-query should be separated by a newline.
@@ -29,43 +34,31 @@ class MultiStepTransformer:
         :return: List of sub-queries.
         """
         # Prompt the model to break down the input query into sub-queries
-        decomposition_prompt = f"Please break down the question '{text}' into smaller sub-queries that can be answered one by one."
+        if isinstance(text, str):
+            text = [text]
 
-        decomposition = self.llm.complete(decomposition_prompt, temperature=0.2)
-        decomposition = decomposition.text
+        if isinstance(text[0], list) and len(text) == 1:
+            text = text[0]
 
-        # Clean the decomposition output to get individual sub-queries
-        sub_queries = decomposition.split('\n')
-        sub_queries = [sub_query.strip() for sub_query in sub_queries if sub_query.strip()]
+        decomposition_prompts = [f"Please break down the question '{_t}' into smaller sub-queries that can be answered one by one. No more than {max_queries} sub-queries." for _t in text]
+
+        try:
+            decompositions = [self.llm.complete(decomposition_prompt, temperature=0.2) for decomposition_prompt in decomposition_prompts]
+            decompositions = [decomposition.text for decomposition in decompositions]
+        except Exception as e:
+            raise Exception(f"Error decomposing the input query: {str(e)}")
+
+        try:
+            sub_queries = [decomposition.split("\n")[1:] for decomposition in decompositions]
+            sub_queries = [[sub_query for sub_query in sub_query_list if sub_query] for sub_query_list in sub_queries]
+        except Exception as e:
+            raise Exception(f"Error extracting sub-queries: {str(e)}")
+        
         return sub_queries
-
-    def transform(self, text: str) -> str:
-        """
-        Transforms the input text into multi-step decomposed texts by interacting with the LLM model.
-        
-        :param text: str. The text to transform.
-        :return: Combined responses from each sub-query.
-        """
-        if not text:
-            return "Please provide a text to transform."
-
-        # Step 1: Decompose the query into smaller sub-queries
-        decomposed_queries = self.decompose_query(text)
-        
-        # Step 2: Generate answers for each sub-query
-        results = []
-        for query in decomposed_queries:
-            if query:  # Avoid empty queries
-                response = self.llm.complete(f"Answer the following query: {query}")
-                results.append(f"Sub-query: {query} -> Answer: {response}")
-
-        # Combine all sub-query results into one final response
-        final_response = "\n".join(results)
-        return [final_response]
 
 
 if __name__ == "__main__":
-    text = "What are the effects of schizophrenia on memory?"
+    text = [["What are the effects of schizophrenia on memory?"]]
     transformer = MultiStepTransformer()
 
     print(transformer.transform(text))

@@ -1,12 +1,13 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from snowflake.snowpark.session import Session
 from snowflake.core import Root
 from snowflake.cortex import Complete
 from llama_index.core.llms import LLM
-from typing import Any, List, Dict, Callable, Union
-
+from typing import Any, List, Dict, Callable, Union, Optional
+from llama_index.core.llms import CompletionResponse, CompletionResponseGen
 from core.llm.CustomLLM import RagoonBot
 from core.preprocessing.HYDE.HyDETransform import HyDETransformer
 from core.preprocessing.MultiStep.MultiStepTransform import MultiStepTransformer
@@ -36,7 +37,7 @@ except Exception as e:
 
 transforms = {
     'HyDE': HyDETransformer(),
-    # 'MultiStep': MultiStepTransformer()
+    'MultiStep': MultiStepTransformer()
 }
 
 class Rag:
@@ -95,44 +96,94 @@ class Rag:
         self,
         contexts: List[str] = [],
         query: str = None,
+        history: Optional[List[dict]] = None,
+        **kwargs: Any
     ):
-        _query = query
-        if self.transformers is not None:
-            for _transformer in self.transformers:
-                prime = transforms.get(_transformer)
-                _query = prime.transform(query)[0]
+        assert query is not None, "Query cannot be None."
+
+        if not contexts:
+            context = "None"
+
         context = "\n\n".join(contexts)
-        prompt = ( #TODO: prompting
-            "You are an assistant for tourism and travel tasks. Use the following pieces of "
-            "retrieved context to answer the question. If you don't know the answer, say that you "
-            "don't know. Keep the answer concise."
-            "\n\nContext:\n" + context + "\n\nQuestion:\n" + _query
-        )
+        prompt = f"""
+            Given the messages between a user and an assistant:
+            {history}
+            You are an assistant for tourism and travel tasks. Use the following pieces of
+            retrieved context to answer the question. If you don't know the answer, say that you
+            don't know. Keep the answer concise. Restate the questions before answering.
+        """
+        prompt += f"\n\nContext: {context} \n\nQuery: {query}"
 
         response = self.llm.complete(prompt)
         return response
 
     def complete(
         self,
-        prompt: str,
+        prompts: Union[str, List[str]] = None,
+        history: Optional[List[dict]] = None,
         **kwargs
-    ):
-        _prompt = prompt
+    ) -> CompletionResponse:
+        """
+        Completes the prompt using the RAG model.
+
+        :param prompts: str. The prompts to complete.
+        :return: str. The completed prompts.
+        """
+        assert prompts is not None, "Prompt cannot be None."
+        
+        if isinstance(prompts, str):
+            _prompt = [[prompts]]
+            original_prompt = prompts
+
+        if isinstance(prompts, list):
+            _prompt = [prompts]
+            original_prompt = prompts[0]
+
         if self.transformers is not None:
             for _transformer in self.transformers:
                 prime = transforms.get(_transformer)
-                _prompt = prime.transform(prompt)[0]
+                _prompt = prime.transform(_prompt)
 
-        retrieved_contexts = self.retrieve(_prompt)
-        response = self.generate_response(retrieved_contexts, _prompt)
-
-        return response
+        retrieved_contexts = []
+        for _p in _prompt:
+            retrieved_contexts.extend(self.retrieve(_p[0]))
         
+        response = self.generate_response(
+            contexts=retrieved_contexts,
+            history=history,
+            query=original_prompt
+        )
+
+        return CompletionResponse(text=response.text)
+        
+    def stream_complete(
+        self,
+        prompt: str,
+        history: Optional[List[dict]] = None,
+        **kwargs: Any
+    ):
+        """
+        Generate a streamed completion for the given prompt.
+
+        :param prompt: The input text prompt.
+        :param history: Optional history of previous interactions.
+        :yield: Partial CompletionResponses as text is generated.
+        """
+        try:
+            full_response = self.complete(prompt, history=history)
+        except Exception as e:
+            yield CompletionResponse(text="", delta=f"Error: {e}")
+            return
+
+        accumulated_text = ""
+        for char in full_response:
+            accumulated_text += char
+            yield CompletionResponse(text=accumulated_text, delta=char)
 
 if __name__ == "__main__":
     rag = Rag(
         llm=llm,
-        transformers="HyDE",
+        transformers=["MultiStep", "HyDE"],
         snowpark_session=snowpark_session,
         snowflake_params=connection_params
     )
