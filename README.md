@@ -24,8 +24,7 @@ Embark on smarter, funnier, and more unforgettable adventures with **Ragoooon** 
 
 **Connect with Us:**
 
-- **Website:** 
-- **GitHub:** 
-- **Support:** 
+- **Website:** github.com/Tsun0193
+- **Support:** iai24.ares@gmail.com
 
 Stay tuned for updates and join our community of adventurous travelers today!
