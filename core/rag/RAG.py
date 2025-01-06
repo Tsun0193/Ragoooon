@@ -72,6 +72,20 @@ class Rag:
         self.search_columns = search_columns
         self.retrieve_column = retrieve_column
 
+    def controller(self, text: str, **kwargs: Any) -> bool:
+        # If the text is about basic information, return True
+        prompt = """
+            Return True if the user query is about basic information or general knowledge.
+            Otherwise, return False.
+            Do not include any other information, just True or False.
+
+            User Query: {}
+        """
+        response = self.llm.complete(prompt.format(text))
+        response = response.text
+        response = response.strip()
+        assert response in ["True", "False"], f"Invalid response from the controller: {response.text}"
+        return response == "True"
 
     def retrieve(self, query: str) -> List[str]:
         root = Root(self._snowpark_session)
@@ -146,10 +160,15 @@ class Rag:
             _prompt = [prompts]
             original_prompt = prompts[0]
 
-        if self.transformers is not None:
-            for _transformer in self.transformers:
-                prime = transforms.get(_transformer)
-                _prompt = prime.transform(_prompt)
+        # TODO: Reduce transforms for basic queries
+        if self.controller(original_prompt):
+            # No need for transformers
+            _prompt = [[original_prompt]]
+        else:
+            if self.transformers is not None:
+                for _transformer in self.transformers:
+                    prime = transforms.get(_transformer)
+                    _prompt = prime.transform(_prompt)
 
         retrieved_contexts = []
         for _p in _prompt:
