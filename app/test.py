@@ -149,8 +149,8 @@ def route_request(request: RouteRequest):
         if end_coords:
             route, distance = calculate_route(start_coords, end_coords)
             if route:
-                plot_route(route, start_coords, end_coords)
-                return {"route": route, "distance": distance}
+                m = plot_route(route, start_coords, end_coords)
+                return {"route": route, "distance": distance, "map": m}
             else:
                 raise HTTPException(status_code=500, detail="Error fetching route.")
         else:
