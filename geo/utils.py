@@ -4,6 +4,7 @@ import json
 import os
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
+from typing import Literal
 
 load_dotenv("../.env")
 os.chdir("../")
@@ -44,12 +45,15 @@ def get_destination(destination: str = None, **kwargs):
         print("Could not find the destination address.")
         return None
     
-def calculate_route(start_coords, end_coords, api_key = os.getenv("ORS_TOKEN")):
+def calculate_route(start_coords, end_coords, 
+                    vehicle: Literal["driving-car", "foot-walking", "cycling-regular"] = "driving-car",
+                    api_key = os.getenv("ORS_TOKEN")):
     """
     Uses OpenRouteService API to calculate the route between two coordinates.
     Returns the route geometry and the distance in kilometers.
     """
-    url = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson'
+    assert vehicle in ["driving-car", "foot-walking", "cycling-regular"], "Invalid vehicle type."
+    url = f"https://api.openrouteservice.org/v2/directions/{vehicle}/geojson"
     headers = {
         'Authorization': api_key,
         'Content-Type': 'application/json'
@@ -60,13 +64,20 @@ def calculate_route(start_coords, end_coords, api_key = os.getenv("ORS_TOKEN")):
             [end_coords[1], end_coords[0]]
         ]
     }
+    speed = {
+        "driving-car": 30,
+        "foot-walking": 5,
+        "cycling-regular": 10
+    }
+
     response = requests.post(url, headers=headers, json=body)
     if response.status_code == 200:
         data = response.json()
         distance = data['features'][0]['properties']['segments'][0]['distance'] / 1000
         geometry = data['features'][0]['geometry']['coordinates']
         route = [(coord[1], coord[0]) for coord in geometry]
-        return route, distance
+        eta_time = distance / speed[vehicle]
+        return route, distance, eta_time
     else:
         print(f"Error fetching route: {response.status_code} - {response.text}")
         return None, None

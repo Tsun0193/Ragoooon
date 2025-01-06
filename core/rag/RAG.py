@@ -6,13 +6,13 @@ from snowflake.snowpark.session import Session
 from snowflake.core import Root
 from snowflake.cortex import Complete
 from llama_index.core.llms import LLM
-from typing import Any, List, Dict, Callable, Union, Optional
+from typing import Any, List, Dict, Callable, Union, Optional, Tuple
 from llama_index.core.llms import CompletionResponse, CompletionResponseGen
 from core.llm.CustomLLM import RagoonBot
 from core.preprocessing.HYDE.HyDETransform import HyDETransformer
 from core.preprocessing.MultiStep.MultiStepTransform import MultiStepTransformer
 from core.preprocessing.rerank.Reranker import Reranker
-
+from geo.utils import *
 
 load_dotenv('../../.env')
 llm = RagoonBot()
