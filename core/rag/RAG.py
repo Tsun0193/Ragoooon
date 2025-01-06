@@ -11,6 +11,7 @@ from llama_index.core.llms import CompletionResponse, CompletionResponseGen
 from core.llm.CustomLLM import RagoonBot
 from core.preprocessing.HYDE.HyDETransform import HyDETransformer
 from core.preprocessing.MultiStep.MultiStepTransform import MultiStepTransformer
+from core.preprocessing.rerank.Reranker import Reranker
 
 
 load_dotenv('../../.env')
@@ -37,7 +38,8 @@ except Exception as e:
 
 transforms = {
     'HyDE': HyDETransformer(),
-    'MultiStep': MultiStepTransformer()
+    'MultiStep': MultiStepTransformer(),
+    'Rerank': Reranker("")
 }
 
 class Rag:
@@ -114,7 +116,6 @@ class Rag:
         **kwargs: Any
     ):
         assert query is not None, "Query cannot be None."
-
         if not contexts:
             context = "None"
 
@@ -135,7 +136,7 @@ class Rag:
         prompt += f"\n\nContext: {context} \n\nQuery: {query}"
 
         response = self.llm.complete(prompt)
-        print(prompt)
+        # print(prompt)
         return response
 
     def complete(
@@ -160,11 +161,12 @@ class Rag:
             _prompt = [prompts]
             original_prompt = prompts[0]
 
-        # TODO: Reduce transforms for basic queries
+        # Reduce transforms for basic queries
         if self.controller(original_prompt):
             # No need for transformers
             _prompt = [[original_prompt]]
         else:
+            transforms["Rerank"]._original_string = original_prompt
             if self.transformers is not None:
                 for _transformer in self.transformers:
                     prime = transforms.get(_transformer)

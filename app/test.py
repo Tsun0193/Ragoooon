@@ -5,8 +5,10 @@ from fastapi import FastAPI, HTTPException
 # Import RagoonBot from the correct path. Assuming it's in "core.llm.CustomLLM"
 from core.llm.CustomLLM import RagoonBot
 from core.rag.RAG import Rag
-from core.handlers.requests import CompletionRequest, ChatRequest, RAGCompleteRequest, RAGChatRequest
-from core.handlers.responses import CompletionResponse, ChatResponse, RAGCompleteResponse, RAGChatResponse
+from core.handlers.requests import CompletionRequest, ChatRequest, RAGCompleteRequest, RAGChatRequest, RouteRequest
+from core.handlers.responses import CompletionResponse, RAGCompleteResponse
+from geo.utils import plot_route, get_destination, calculate_route
+
 
 load_dotenv('../.env')
 
@@ -129,5 +131,30 @@ def rag_stream_complete_request(request: RAGChatRequest):
 
         return {"stream": [resp.delta for resp in generator],
                 "updated_history": updated_history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/route")
+def route_request(request: RouteRequest):
+    """
+    Calculate and plot the route between two coordinates.
+
+    :param start_coords: The starting coordinates.
+    :param end_coords: The destination coordinates.
+    :return: The route geometry and distance in kilometers.
+    """
+    try:
+        start_coords = request.current_location
+        end_coords = get_destination(destination=request.destination)
+        if end_coords:
+            route, distance = calculate_route(start_coords, end_coords)
+            if route:
+                plot_route(route, start_coords, end_coords)
+                return {"route": route, "distance": distance}
+            else:
+                raise HTTPException(status_code=500, detail="Error fetching route.")
+        else:
+            raise HTTPException(status_code=500, detail="Could not find the destination address.")
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

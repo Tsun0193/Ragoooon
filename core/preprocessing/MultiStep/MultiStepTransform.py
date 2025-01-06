@@ -37,12 +37,12 @@ class MultiStepTransformer:
         """
         # Prompt the model to break down the input query into sub-queries
         if isinstance(text, str):
-            text = [text]
+            _text = [text]
 
         if isinstance(text[0], list) and len(text) == 1:
-            text = text[0]
+            _text = text[0]
 
-        decomposition_prompts = [f"Please break down the question '{_t}' into smaller sub-queries that can be answered one by one. No more than {max_queries} sub-queries." for _t in text]
+        decomposition_prompts = [f"Please break down the question '{_t}' into smaller sub-queries that can be answered one by one. No more than {max_queries} sub-queries." for _t in _text]
 
         try:
             decompositions = [self.llm.complete(decomposition_prompt, temperature=0.2) for decomposition_prompt in decomposition_prompts]
