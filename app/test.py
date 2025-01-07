@@ -11,7 +11,7 @@ from geo.utils import plot_route, get_destination, calculate_route
 from asr.whisper import query
 
 load_dotenv('../.env')
-os.chdir("../")
+# os.chdir("../")
 
 app = FastAPI(title="RagoonBot API", description="API for RagoonBot, a custom LLM model.", version="0.1a")
 
@@ -169,7 +169,9 @@ def asr_request(request: AudioRequest):
     :return: The transcribed text.
     """
     try:
+        os.chdir("../")
         response = query(request.audio_file)
+        os.chdir("app")
         return {"transcription": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
