@@ -2,9 +2,11 @@ import requests
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv("../.env")
+os.chdir("../")
 
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
+assert os.getenv("HF_TOKEN") is not None, "Hugging Face API token must be provided."
 headers = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
 
 def query(filename):
