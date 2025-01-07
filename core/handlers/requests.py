@@ -22,3 +22,6 @@ class RAGChatRequest(BaseModel):
 class RouteRequest(BaseModel):
     destination: str
     current_location: Tuple[float, float] = Field(None, description="The current location coordinates.")
+
+class AudioRequest(BaseModel):
+    filepath: str = Field(..., description="The path to the audio file.")

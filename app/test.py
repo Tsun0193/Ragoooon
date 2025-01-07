@@ -5,12 +5,13 @@ from fastapi import FastAPI, HTTPException
 # Import RagoonBot from the correct path. Assuming it's in "core.llm.CustomLLM"
 from core.llm.CustomLLM import RagoonBot
 from core.rag.RAG import Rag
-from core.handlers.requests import CompletionRequest, ChatRequest, RAGCompleteRequest, RAGChatRequest, RouteRequest
+from core.handlers.requests import *
 from core.handlers.responses import CompletionResponse, RAGCompleteResponse
 from geo.utils import plot_route, get_destination, calculate_route
-
+from asr.whisper import query
 
 load_dotenv('../.env')
+os.chdir("../")
 
 app = FastAPI(title="RagoonBot API", description="API for RagoonBot, a custom LLM model.", version="0.1a")
 
@@ -156,5 +157,19 @@ def route_request(request: RouteRequest):
         else:
             raise HTTPException(status_code=500, detail="Could not find the destination address.")
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/asr")
+def asr_request(request: AudioRequest):
+    """
+    Transcribe the audio file using the Whisper model.
+
+    :param request: AudioRequest containing the audio file.
+    :return: The transcribed text.
+    """
+    try:
+        response = query(request.audio_file)
+        return {"transcription": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
