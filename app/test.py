@@ -159,18 +159,18 @@ def route_request(request: RouteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-# @app.post("/asr")
-# def asr_request(request: AudioRequest):
-#     """
-#     Transcribe the audio file using the Whisper model.
+@app.post("/asr")
+def asr_request(request: AudioRequest):
+    """
+    Transcribe the audio file using the Whisper model.
 
-#     :param request: AudioRequest containing the audio file.
-#     :return: The transcribed text.
-#     """
-#     try:
-#         os.chdir("../")
-#         response = query(request.audio_file)
-#         os.chdir("app")
-#         return {"transcription": response}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+    :param request: AudioRequest containing the audio file.
+    :return: The transcribed text.
+    """
+    try:
+        os.chdir("../")
+        response = query(request.audio_file)
+        os.chdir("app")
+        return {"transcription": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
