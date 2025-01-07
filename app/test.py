@@ -7,8 +7,7 @@ from core.llm.CustomLLM import RagoonBot
 from core.rag.RAG import Rag
 from core.handlers.requests import *
 from core.handlers.responses import CompletionResponse, RAGCompleteResponse
-from geo.utils import plot_route, get_destination, calculate_route
-# from audio.utils import *
+from geo.utils import *
 
 load_dotenv('../.env')
 # os.chdir("../")
