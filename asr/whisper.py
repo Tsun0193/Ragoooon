@@ -22,6 +22,4 @@ def query(filename):
     return response["text"].strip()
 
 if __name__ == "__main__":
-    name = str(input("Enter the filename: "))
-    response = query(name)
-    print(response)
+    pass
