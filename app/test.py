@@ -8,7 +8,7 @@ from core.rag.RAG import Rag
 from core.handlers.requests import *
 from core.handlers.responses import CompletionResponse, RAGCompleteResponse
 from geo.utils import plot_route, get_destination, calculate_route
-from asr.utils import *
+from audio.utils import *
 
 load_dotenv('../.env')
 # os.chdir("../")
