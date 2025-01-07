@@ -8,7 +8,7 @@ from core.rag.RAG import Rag
 from core.handlers.requests import *
 from core.handlers.responses import CompletionResponse, RAGCompleteResponse
 from geo.utils import plot_route, get_destination, calculate_route
-from audio.utils import *
+# from audio.utils import *
 
 load_dotenv('../.env')
 # os.chdir("../")
@@ -160,18 +160,18 @@ def route_request(request: RouteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/asr")
-def asr_request(request: AudioRequest):
-    """
-    Transcribe the audio file using the Whisper model.
+# @app.post("/asr")
+# def asr_request(request: AudioRequest):
+#     """
+#     Transcribe the audio file using the Whisper model.
 
-    :param request: AudioRequest containing the audio file.
-    :return: The transcribed text.
-    """
-    try:
-        os.chdir("../")
-        response = query(request.audio_file)
-        os.chdir("app")
-        return {"transcription": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+#     :param request: AudioRequest containing the audio file.
+#     :return: The transcribed text.
+#     """
+#     try:
+#         os.chdir("../")
+#         response = query(request.audio_file)
+#         os.chdir("app")
+#         return {"transcription": response}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
