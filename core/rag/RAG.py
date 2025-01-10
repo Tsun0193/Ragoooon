@@ -6,12 +6,13 @@ from snowflake.snowpark.session import Session
 from snowflake.core import Root
 from snowflake.cortex import Complete
 from llama_index.core.llms import LLM
-from typing import Any, List, Dict, Callable, Union, Optional
+from typing import Any, List, Dict, Callable, Union, Optional, Tuple
 from llama_index.core.llms import CompletionResponse, CompletionResponseGen
 from core.llm.CustomLLM import RagoonBot
 from core.preprocessing.HYDE.HyDETransform import HyDETransformer
 from core.preprocessing.MultiStep.MultiStepTransform import MultiStepTransformer
-
+from core.preprocessing.rerank.Reranker import Reranker
+from geo.utils import *
 
 load_dotenv('../../.env')
 llm = RagoonBot()
@@ -37,7 +38,8 @@ except Exception as e:
 
 transforms = {
     'HyDE': HyDETransformer(),
-    'MultiStep': MultiStepTransformer()
+    'MultiStep': MultiStepTransformer(),
+    'Rerank': Reranker("")
 }
 
 class Rag:
@@ -72,6 +74,20 @@ class Rag:
         self.search_columns = search_columns
         self.retrieve_column = retrieve_column
 
+    def controller(self, text: str, **kwargs: Any) -> bool:
+        # If the text is about basic information, return True
+        prompt = """
+            Return True if the user query is about basic information or general knowledge.
+            Otherwise, return False.
+            Do not include any other information, just True or False.
+
+            User Query: {}
+        """
+        response = self.llm.complete(prompt.format(text))
+        response = response.text
+        response = response.strip()
+        assert response in ["True", "False"], f"Invalid response from the controller: {response.text}"
+        return response == "True"
 
     def retrieve(self, query: str) -> List[str]:
         root = Root(self._snowpark_session)
@@ -100,7 +116,6 @@ class Rag:
         **kwargs: Any
     ):
         assert query is not None, "Query cannot be None."
-
         if not contexts:
             context = "None"
 
@@ -121,7 +136,7 @@ class Rag:
         prompt += f"\n\nContext: {context} \n\nQuery: {query}"
 
         response = self.llm.complete(prompt)
-        print(prompt)
+        # print(prompt)
         return response
 
     def complete(
@@ -146,10 +161,16 @@ class Rag:
             _prompt = [prompts]
             original_prompt = prompts[0]
 
-        if self.transformers is not None:
-            for _transformer in self.transformers:
-                prime = transforms.get(_transformer)
-                _prompt = prime.transform(_prompt)
+        # Reduce transforms for basic queries
+        if self.controller(original_prompt):
+            # No need for transformers
+            _prompt = [[original_prompt]]
+        else:
+            transforms["Rerank"]._original_string = original_prompt
+            if self.transformers is not None:
+                for _transformer in self.transformers:
+                    prime = transforms.get(_transformer)
+                    _prompt = prime.transform(_prompt)
 
         retrieved_contexts = []
         for _p in _prompt:

@@ -51,13 +51,13 @@ class HyDETransformer(HyDEQueryTransform):
             return "Please provide a text to transform."
         
         if isinstance(text, str):
-            text = [text]
+            _text = [text]
 
         if isinstance(text[0], list) and len(text) == 1:
-            text = text[0]
+            _text = text[0]
 
         try:
-            response = [self.run(t) for t in text]
+            response = [self.run(t) for t in _text]
         except Exception as e:
             raise Exception(f"Error transforming the input text: {str(e)}")
         response = [r for r in response if r.custom_embedding_strs]
