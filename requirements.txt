@@ -15,3 +15,5 @@ together==1.3.5
 uvicorn==0.34.0
 folium==0.19.4
 geopy==2.4.1
+trulens-connectors-snowflake==1.3.2
+trulens-providers-cortex==1.3.2
